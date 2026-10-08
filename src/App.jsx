@@ -20,7 +20,8 @@ function formatMinutesToTime(minutes) {
   return `${hStr}:${mStr}`;
 }
 
-function addTime(startTimeStr, durationStr) {
+// NEW: supports both add and subtract
+function calculateEndTime(startTimeStr, durationStr, operation) {
   const startMins = parseTimeToMinutes(startTimeStr);
 
   const [dHrsStr, dMinsStr] = durationStr.split(':');
@@ -32,10 +33,23 @@ function addTime(startTimeStr, durationStr) {
   }
 
   const durationTotalMins = dHrs * 60 + dMins;
-  const resultMins = startMins + durationTotalMins;
+
+  let resultMins;
+  if (operation === 'add') {
+    resultMins = startMins + durationTotalMins;
+  } else if (operation === 'subtract') {
+    resultMins = startMins - durationTotalMins;
+  } else {
+    throw new Error('Unknown operation');
+  }
+
+  // For now, we’re not handling negative results or > 24h wraparound.
+  if (resultMins < 0 || resultMins > 23 * 60 + 59) {
+    throw new Error('Result outside a single day (not supported yet).');
+  }
+
   return formatMinutesToTime(resultMins);
 }
-
 
 export default function App() {
   const [startTime, setStartTime] = useState("12:00");
@@ -43,11 +57,10 @@ export default function App() {
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
 
-  function handleCalculate(e) {
-    e.preventDefault();
-
+  // CHANGED: takes operation instead of event
+  function handleCalculate(operation) {
     try {
-      const endTime = addTime(startTime, duration);
+      const endTime = calculateEndTime(startTime, duration, operation);
       setResult(endTime);
       setError("");
     } catch (err) {
@@ -56,41 +69,47 @@ export default function App() {
     }
   }
 
-
-   return (
+  return (
     <div style={{ maxWidth: 400, margin: "2rem auto", fontFamily: "sans-serif" }}>
       <h1>Time Calculator</h1>
-      <form onSubmit={handleCalculate}>
-        <div style={{ marginBottom: "1rem" }}>
-          <label>
-            Start time (HH:MM):{" "}
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              step="60"
-            />
-          </label>
-        </div>
 
-        <div style={{ marginBottom: "1rem" }}>
-          <label>
-            Duration (HH:MM):{" "}
-            <input
-              type="text"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder="01:30"
-            />
-          </label>
-        </div>
+      <div style={{ marginBottom: "1rem" }}>
+        <label>
+          Start time (HH:MM):{" "}
+          <input
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            step="60"
+          />
+        </label>
+      </div>
 
-        <button type="submit">Calculate</button>
-      </form>
+      <div style={{ marginBottom: "1rem" }}>
+        <label>
+          Duration (HH:MM):{" "}
+          <input
+            type="text"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            placeholder="01:30"
+          />
+        </label>
+      </div>
+
+      {/* NEW: two buttons instead of one submit */}
+      <div style={{ marginBottom: "1rem" }}>
+        <button type="button" onClick={() => handleCalculate('add')}>
+          Add
+        </button>{" "}
+        <button type="button" onClick={() => handleCalculate('subtract')}>
+          Subtract
+        </button>
+      </div>
 
       {result && (
         <p>
-          End time: <strong>{result}</strong>
+          Result: <strong>{result}</strong>
         </p>
       )}
       {error && <p style={{ color: "red" }}>{error}</p>}
